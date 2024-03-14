@@ -1,8 +1,6 @@
 # Parallel-Model-Evaluator
 Accelerate Model Evaluation: Precision-Recall Curve Plotting with Parallel Work-Stealing Implementation
 
-# Project Report - Sentiment Analysis Threshold Tuning
-
 ## Overview
 In this project, I worked on creating a program to test and tune different thresholds for a sentiment analysis model. I used the VADER sentiment analysis tool available [here](https://github.com/grassmudhorses/vader-go), which is a lexicon and rule-based sentiment analysis tool specifically attuned to sentiments expressed in social media. The program focuses on choosing the best threshold for a negative sentiment VADER based model.
 
@@ -79,18 +77,3 @@ Based on the speedup graphs, the benefits of different parallel versions are gre
 As seen in the speedup graphs, for the balanced dataset, all 3 implementations have roughly the same speedup and thus there is no added benefit of enabling work stealing. In cases with a large number of threads, work stealing can even lead to lower speedup because of the added overhead of creating the deques and using atomic operations.
 
 However, when working with the imbalanced dataset, we can see a large difference in performance between the work stealing implementation and the other two implementations. The work distribution is severely uneven in this situation as lower indexed threads have much more work than larger indexed threads. Because of this, the normal parallel implementations have an upper bound on speedup because some threads take more time than other threads, and thus work is not parallelized evenly. On the other hand, when work stealing is enabled, threads that have completed their work early can steal tasks and aid in distributing work evenly across all threads, reducing the time taken by threads with more work. As a result of this, speedup with work stealing is roughly the same as the speedup seen in the balanced dataset, indicating that work stealing was extremely beneficial and enhanced performance when the data was imbalanced.
-
-### Hotspots/Bottlenecks
-#### Hotspots
-- The major hotspot in the sequential version was the processing of the dataset one row at a time. This area was embarrassingly parallel as each row is independent of the other rows, and simply parallelizing this area significantly increased the speedup with minimal overhead.
-- Another hotspot here is the sequential processing of each threshold value. This can be parallelized by spawning different threads to work on different thresholds, and within each threshold, different threads could work on chunks of the data. However, this would lead to added complexity while synchronizing the results from different threshold threads. Further, since the work is roughly the same for all thresholds, there would not be any benefit while using work stealing, and performance should be almost the same as the current implementation when using the same number of threads.
-
-#### Bottlenecks
-- One bottleneck which cannot be parallelized without additional input is the reading of the file. Since we need to know in advance what the length of the file is in order to divide it into equal chunks, the dataset needs to be read before spawning any goroutines. This can be parallelized if the length of the file is given as input to the program.
-- Another bottleneck is the combining of the results from all different threads, saving/printing out the result, and executing the python script to plot the P-R curve. Since we need the results from all threads in order to perform these steps, this step cannot be parallelized. However, this is relatively much faster and does not lead to any significant loss in speedup.
-
-### Speedup Limitation
-Based on the graphs, it does not seem like there are any limitations on the speedup, and as threads increase, speedup should increase as well, since the major portion of the program has been parallelized. However, theoretically, as threads increase, creating deques for each thread in the nosteal and steal implementations could lead to lower speedup. Further, in the work-stealing implementation, as the number of threads grows large, the number of atomic operations increases and thus might lead to a lower speedup. Additionally, as all threads are updating and reading atomically from a single global counter, as threads increase, contention for this memory address increases, and this can lead to a bottleneck that limits the speedup.
-
-### Final Remarks
-I aimed to measure the difference between the three parallel implementations and compare their performance to each other. I went into this project assuming that the work stealing implementation would not significantly improve performance, especially due to the added overhead of the deques and atomic operations. However, surprisingly, all three implementations have roughly the same performance for the balanced dataset - including the nosteal implementation which does the same thing as the normal implementation but with added overhead. Further, for the imbalanced dataset, the work stealing was significantly faster than the other implementations and thus is very beneficial when the input data is inherently imbalanced.
